@@ -22,6 +22,7 @@ class Player:
         self.data = empty()
         self.directory = Directory()
         self.history = History()
+        self.player_name = self.history.player_name()
         self.personal_checked = -float("inf")
         self.cache = settings.with_suffix(".cache")
         if self.url and self.cache.exists():
@@ -45,7 +46,7 @@ class Player:
         modes = {**MODES, **{k: v["name"] for k, v in self.data["mods"].items()}}
         network = self.directory.network()
         stats = self.history.summary()
-        return {"role": "player", "url": self.url, **self.data, "servers": self.servers(),
+        return {"role": "player", "url": self.url, "playerName": self.player_name, **self.data, "servers": self.servers(),
                 "stats": stats, "network": network, "serverCheck": self.directory.checked, "modes": [
             {"id": k, "name": v, "installed": (self.root / k / "liblist.gam").is_file()}
             for k, v in modes.items()]}
@@ -55,7 +56,7 @@ class Player:
         for server in self.directory.entries.values():
             if server.get("status") == "Online" and server.get("map"):
                 mode = server["mode"]
-                score = roster_score(server.get("roster") or [], personal_name(self.root, mode))
+                score = roster_score(server.get("roster") or [], personal_name(self.root, mode, self.player_name))
                 name = KNOWN.get(server["address"], (mode, server["name"]))[1]
                 maps.append((name, mode, server["map"], server.get("players"), score))
         scores = []
@@ -63,7 +64,7 @@ class Player:
             self.personal_checked = time.monotonic()
             try:
                 boards = dashboard_api("/leaderboard?limit=all")["leaderboard"]
-                scores = personal_leaderboard(self.root, boards, PACK_SERVERS)
+                scores = personal_leaderboard(self.root, boards, PACK_SERVERS, self.player_name)
             except (OSError, ValueError, KeyError, TypeError):
                 pass
             try:
@@ -108,12 +109,21 @@ class Player:
             args = ["-game", mode_id(key), *args]
         require((self.root / "hl.exe").is_file() and (self.root / ("valve" if key == "default" else key)
                 / "liblist.gam").is_file(), "This game mode is missing from the pack.")
+        mode = "valve" if key == "default" else key
+        if self.player_name:
+            # A quoted config value survives both Wine and GoldSrc command-line parsing.
+            profile = self.root / mode / "transit-player-name.cfg"
+            with tempfile.NamedTemporaryFile(dir=profile.parent, delete=False) as cfg:
+                cfg.write(f'name "{self.player_name}"\r\n'.encode("utf-8"))
+            os.replace(cfg.name, profile)
+            args.extend(["+exec", profile.name])
         if server_id:
             server = next((s for s in self.servers() if s["id"] == server_id and s["mode"] == key), None)
             require(server, "This server is unavailable for the selected mode.")
             args.extend(["+connect", address(server["address"])])
-            # Some pack modes inherit an empty valve.rc, so GoldSrc skips +connect.
-            startup = self.root / key / "valve.rc"
+        if self.player_name or server_id:
+            # Empty pack startup files skip all +commands.
+            startup = self.root / mode / "valve.rc"
             if not startup.is_file():
                 startup = self.root / "valve" / "valve.rc"
             if startup.is_file() and not startup.read_bytes().strip():
@@ -131,6 +141,15 @@ class Player:
             self.settings.write_text(url)
             self.url = url
             self.refresh()
+        elif action == "setPlayerName":
+            name = data.get("playerName")
+            require(isinstance(name, str) and all(c.isprintable() and c not in '\";\\' for c in name),
+                    "Remove quotes, semicolons, backslashes, and control characters from the player name.")
+            name = name.strip()
+            require(len(name.encode("utf-8")) <= 31, "Player names can use up to 31 UTF-8 bytes.")
+            self.history.set_player_name(name)
+            self.player_name = name
+            self.personal_checked = -float("inf")
         elif action == "refresh":
             self.refresh()
         elif action == "liveServers":
@@ -143,6 +162,6 @@ class Player:
             process = subprocess.Popen(command, cwd=self.root)
             joined = next((s["address"] for s in self.servers() if s["id"] == data.get("server")), None)
             mode = "valve" if data["mode"] == "default" else data["mode"]
-            self.history.start(process, joined, mode, configured_name(self.root, mode))
+            self.history.start(process, joined, mode, self.player_name or configured_name(self.root, mode))
         else:
             raise ValueError("Unknown player action.")

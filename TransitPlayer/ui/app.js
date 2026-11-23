@@ -198,7 +198,7 @@ function render() {
     button(t("Servers"),"servers","",tab==="servers"?"active":"") +
     button(t("Server stats"),"network","",tab==="network"?"active":"") +
     button(t("My stats"),"stats","",tab==="stats"?"active":"") +
-    button(t("Catalog settings"),"settings","","right") + (state.url ? button(t("Refresh"),"refresh") : "") +
+    button(t("Player name"),"playerName","","right") + button(t("Catalog settings"),"settings") + (state.url ? button(t("Refresh"),"refresh") : "") +
     button(t("Update dashboard"),"updateDashboard");
   const heroAction = button(t("▶  Launch default game"),"play","default","primary");
   let html = '<section class="hero"><span class="meta">'+t("BRUT.me GAME PACK")+'</span><h1>'+
@@ -278,6 +278,10 @@ async function action(a,id) {
     finally{busy=false;}
     return;
   }
+  if(a==="playerName") return modal(t("Player name"),
+    '<label>'+t("In-game name")+'<input autofocus name="playerName" maxlength="31" value="'+esc(state.playerName)+'" aria-describedby="nameHint"></label>'+
+    '<p id="nameHint">'+t("Used when you play or join a server. Leave blank to use the game’s configured name.")+'</p>',
+    t("Save name"),d=>send("setPlayerName",d));
   if(a==="settings") return modal(t("Player catalog"),input("url",t("Public catalog folder URL"),state.url,"url","https://games.example.org/pack"),t("Save and refresh"),d=>send("configure",d));
   const s=state.servers.find(s=>s.id===id);
   if(a==="install") return modal(t("Install mod"),"<p>"+esc(t("Download and install {mod} ({size} MiB) from your configured publisher?").replace(/\{(mod|size)\}/g, (_, key) => key === "mod" ? state.mods[id].name : (state.mods[id].bytes/1048576).toLocaleString(language,{minimumFractionDigits:1,maximumFractionDigits:1})))+"</p>",t("Install"),()=>send(a,{mode:id}));

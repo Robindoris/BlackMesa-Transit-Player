@@ -23,8 +23,8 @@ def configured_name(root, mode):
     return ""
 
 
-def personal_name(root, mode):
-    name = configured_name(root, mode)
+def personal_name(root, mode, preferred=""):
+    name = preferred or configured_name(root, mode)
     return "" if name.casefold() in {"<brut.me> player", "player"} else name
 
 
@@ -67,10 +67,10 @@ def roster_score(players, nickname):
         return int(matches[0]["score"])
 
 
-def personal_leaderboard(root, boards, pack):
+def personal_leaderboard(root, boards, pack, preferred=""):
     rows = []
     for key, (mode, _, server) in pack.items():
-        nickname = personal_name(root, mode)
+        nickname = personal_name(root, mode, preferred)
         if not nickname:
             continue
         matches = [p for p in boards.get(key, []) if p["name"].casefold() == nickname.casefold()]

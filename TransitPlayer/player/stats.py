@@ -18,6 +18,7 @@ class History:
         self.path = root / "stats.sqlite3"
         with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            db.execute("CREATE TABLE IF NOT EXISTS preferences (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
             db.execute("""CREATE TABLE IF NOT EXISTS sessions
                        (id INTEGER PRIMARY KEY, started INTEGER NOT NULL, server TEXT, seconds INTEGER DEFAULT 0)""")
 
@@ -33,6 +34,15 @@ class History:
                        PRIMARY KEY(server, mode, map))""")
             db.execute("""CREATE TABLE IF NOT EXISTS leaderboard (
                        server TEXT, nickname TEXT, peak INTEGER, PRIMARY KEY(server, nickname))""")
+
+    def player_name(self):
+        with closing(sqlite3.connect(self.path)) as db:
+            row = db.execute("SELECT value FROM preferences WHERE key='player_name'").fetchone()
+            return row[0] if row else ""
+
+    def set_player_name(self, name):
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("INSERT OR REPLACE INTO preferences VALUES ('player_name', ?)", (name,))
 
     def save_observations(self, maps, scores=()):
         with closing(sqlite3.connect(self.path)) as db, db:
