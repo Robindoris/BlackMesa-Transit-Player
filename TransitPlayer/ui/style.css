@@ -71,3 +71,9 @@ h1{font-size:clamp(32px,5vw,58px);letter-spacing:-2px;margin:8px 0 20px}h2{font-
 .map-history summary small{font:12px monospace;color:var(--bm-color-muted-foreground)}
 .map-history summary:focus-visible{outline:2px solid var(--bm-color-primary);outline-offset:-3px}
 .map-history > .card,.map-history > .empty{border:0;border-top:1px solid var(--bm-color-panel-border);border-radius:0}
+
+.header-tools,#languages{display:flex;align-items:center;gap:6px}
+.header-tools{gap:16px}
+#languages button{padding:6px 9px}
+#languages [aria-pressed="true"]{border-color:var(--bm-color-primary);color:var(--bm-color-primary)}
+@media(max-width:600px){.header-tools #edition{display:none}}
