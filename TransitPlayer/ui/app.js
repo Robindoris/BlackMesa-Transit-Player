@@ -263,7 +263,7 @@ function render() {
     $("#view").innerHTML = '<h1>'+t("Settings and updates")+'</h1><div class="settings-panels">'+
       '<section class="card info"><h2>'+t("Settings")+'</h2><div class="tools">'+
       button(t("Player name"),"playerName")+button(t("Catalog settings"),"settings")+
-      (state.url ? button(t("Refresh catalog"),"refresh") : "")+'</div></section>'+
+      button(t("Refresh catalog"),"refresh")+'</div></section>'+
       '<section class="card info"><h2>'+t("Dashboard updates")+'</h2><p id="update-status" role="status"></p>'+
       button(t("Update dashboard"),"updateDashboard")+'</section>'+
       '<section class="card info"><h2>'+t("Launcher")+'</h2><div class="launcher-controls">'+
@@ -371,7 +371,7 @@ async function action(a,id) {
     '<label>'+t("In-game name")+'<input autofocus name="playerName" maxlength="31" value="'+esc(state.playerName)+'" aria-describedby="nameHint"></label>'+
     '<p id="nameHint">'+t("Used when you play or join a server. Leave blank to use the game’s configured name.")+'</p>',
     t("Save name"),d=>send("setPlayerName",d));
-  if(a==="settings") return modal(t("Player catalog"),input("url",t("Public catalog folder URL"),state.url,"url","https://games.example.org/pack"),t("Save and refresh"),d=>send("configure",d));
+  if(a==="settings") return modal(t("Player catalog"),input("url",t("Public catalog folder URL"),state.manualUrl,"url","Automatic").replace("required ",""),t("Save and refresh"),d=>send("configure",d));
   const s=state.servers.find(s=>s.id===id);
   if(a==="install") return modal(t("Install mod"),"<p>"+esc(t("Download and install {mod} ({size} MiB) from your configured publisher?").replace(/\{(mod|size)\}/g, (_, key) => key === "mod" ? state.mods[id].name : (state.mods[id].bytes/1048576).toLocaleString(language,{minimumFractionDigits:1,maximumFractionDigits:1})))+"</p>",t("Install"),()=>send(a,{mode:id}));
   if(a==="play"||a==="join") return work(()=>send("launch",{mode:s?.mode||id,server:s?.id}),"Launching…","Launch requested.");
@@ -382,7 +382,7 @@ document.addEventListener("change",e=>{if(e.target.id==="filter"){filter=e.targe
 $("#close").onclick=()=>{if(!busy)$("dialog").close();};
 $("dialog").addEventListener("cancel",e=>{if(busy)e.preventDefault();});
 $("#form").onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));work(()=>onSubmit(d),"Working…","Changes applied.");};
-(async()=>{try{await connect(launchToken || localStorage.transitPairing);state=await api("/api");render();checkForUpdate();if(state.url)await work(()=>send("refresh"),"Refreshing catalog…","");}catch(e){msg(e.message);}})();
+(async()=>{try{await connect(launchToken || localStorage.transitPairing);state=await api("/api");render();checkForUpdate();await work(()=>send("refresh"),"Refreshing catalog…","");}catch(e){msg(e.message);}})();
 
 setInterval(()=>{if(!document.hidden)updateStatsView();},15000);
 

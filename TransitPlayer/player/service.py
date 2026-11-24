@@ -5,7 +5,8 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
+from player.updater import fetch
 from shared.core import CATALOG, MODES, address, catalog, digest, empty, extract, mode_id, public_url, require, save
 
 
@@ -19,25 +20,43 @@ class Player:
         self.root = root.resolve()
         self.settings = settings
         self.url = settings.read_text().strip() if settings.exists() else ""
+        self.manual = self.url
         self.data = empty()
         self.directory = Directory()
         self.history = History()
         self.player_name = self.history.player_name()
         self.personal_checked = -float("inf")
         self.cache = settings.with_suffix(".cache")
-        if self.url and self.cache.exists():
+        if self.cache.exists():
             try:
                 saved = json.loads(self.cache.read_bytes())
-                if saved["url"] == self.url:
+                if saved["url"] == self.manual or (not self.manual and saved.get("discovered")):
+                    self.url = public_url(saved["url"])
                     self.data = catalog(saved["catalog"])
             except (ValueError, KeyError, TypeError):
                 pass
 
     def refresh(self):
-        with urlopen(public_url(self.url) + "/" + CATALOG, timeout=12) as response:
-            data = catalog(json.loads(response.read(2**20 + 1)))
-        save(self.cache, {"url": self.url, "catalog": data})
-        self.data = data
+        base = self.manual
+        if not base:
+            try:
+                raw = fetch("/contents/catalog-service.txt?ref=main", 2048, "application/vnd.github.raw+json")
+                value = raw.decode().strip()
+                if not value:
+                    return
+                base = public_url(value)
+                require(base.startswith("https://"), "Discovery requires HTTPS.")
+            except OSError:
+                if not self.url:
+                    raise
+                base = self.url
+        req = Request(base + "/" + CATALOG, headers={"User-Agent": "BlackMesaTransit-Player/1"})
+        with urlopen(req, timeout=12) as response:
+            content = response.read(2**20 + 1)
+            require(len(content) <= 2**20, "Catalog exceeds the size limit.")
+            data = catalog(json.loads(content))
+        save(self.cache, {"url": base, "catalog": data, "discovered": not self.manual})
+        self.url, self.data = base, data
 
     def servers(self):
         return self.directory.merge(self.data["servers"])
@@ -46,7 +65,7 @@ class Player:
         modes = {**MODES, **{k: v["name"] for k, v in self.data["mods"].items()}}
         network = self.directory.network()
         stats = self.history.summary()
-        return {"role": "player", "url": self.url, "playerName": self.player_name, **self.data, "servers": self.servers(),
+        return {"role": "player", "url": self.url, "manualUrl": self.manual, "playerName": self.player_name, **self.data, "servers": self.servers(),
                 "stats": stats, "network": network, "serverCheck": self.directory.checked, "modes": [
             {"id": k, "name": v, "installed": (self.root / k / "liblist.gam").is_file()}
             for k, v in modes.items()]}
@@ -85,7 +104,7 @@ class Player:
         with tempfile.TemporaryDirectory(dir=self.root) as td:
             stage = Path(td)
             archive = stage / "release.zip"
-            with urlopen(public_url(self.url) + "/" + mod["sha256"] + ".zip", timeout=60) as src, archive.open("wb") as dst:
+            with urlopen(Request(public_url(self.url) + "/" + mod["sha256"] + ".zip", headers={"User-Agent": "BlackMesaTransit-Player/1"}), timeout=60) as src, archive.open("wb") as dst:
                 size = 0
                 while chunk := src.read(1024 * 1024):
                     size += len(chunk)
@@ -135,11 +154,11 @@ class Player:
 
     def action(self, action, data):
         if action == "configure":
-            url = public_url(data["url"])
+            url = public_url(data["url"]) if data["url"].strip() else ""
             if url != self.url:
                 self.data = empty()
             self.settings.write_text(url)
-            self.url = url
+            self.url = self.manual = url
             self.refresh()
         elif action == "setPlayerName":
             name = data.get("playerName")
