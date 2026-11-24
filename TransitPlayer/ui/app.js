@@ -282,7 +282,8 @@ function render() {
   const heroAction = button(t("▶  Launch default game"),"play","default","primary");
   const packLink = tab === "library"
     ? '<a class="pack-download" href="https://hlpack.brut.me/" target="_blank" rel="noopener noreferrer">'+
-      t("Download latest pack from hlpack.brut.me (ZIP, ≈1.8 GB)")+'</a>'
+      '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg>'+
+      '<span class="pack-tooltip">'+t("Download latest pack from hlpack.brut.me (ZIP, ≈1.8 GB)")+'</span></a>'
     : "";
   let html = '<section class="hero"><span class="meta">'+t("BRUT.me GAME PACK")+'</span><h1>'+
     (tab==="network"?t("Server stats"):tab==="stats"?t("My stats"):tab==="servers"?t("Server directory"):t("Half-Life launcher"))+'</h1><div class="tools">'+heroAction+packLink+'</div></section>';
