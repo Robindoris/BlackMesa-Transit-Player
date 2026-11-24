@@ -280,8 +280,12 @@ function render() {
   }
   showUpdateStatus();
   const heroAction = button(t("▶  Launch default game"),"play","default","primary");
+  const packLink = tab === "library"
+    ? '<a class="pack-download" href="https://hlpack.brut.me/" target="_blank" rel="noopener noreferrer">'+
+      t("Download latest pack from hlpack.brut.me (ZIP, ≈1.8 GB)")+'</a>'
+    : "";
   let html = '<section class="hero"><span class="meta">'+t("BRUT.me GAME PACK")+'</span><h1>'+
-    (tab==="network"?t("Server stats"):tab==="stats"?t("My stats"):tab==="servers"?t("Server directory"):t("Half-Life launcher"))+'</h1>'+heroAction+'</section>';
+    (tab==="network"?t("Server stats"):tab==="stats"?t("My stats"):tab==="servers"?t("Server directory"):t("Half-Life launcher"))+'</h1><div class="tools">'+heroAction+packLink+'</div></section>';
   if (tab === "library") {
     html += '<div class="section"><h2>'+t("Game modes")+'</h2><small>'+counted(state.modes.length,"MODE","MODES",["REŽIM","REŽIMY","REŽIMOV"])+'</small></div><div class="grid">';
     for (const m of state.modes) {

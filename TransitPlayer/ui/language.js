@@ -53,6 +53,7 @@ const slovak = {
   "Launcher is shutting down.": "Spúšťač sa vypína.",
   "Update dashboard": "Aktualizovať panel",
   "▶  Launch default game": "▶  Spustiť predvolenú hru",
+  "Download latest pack from hlpack.brut.me (ZIP, ≈1.8 GB)": "Stiahnuť najnovší balík z hlpack.brut.me (ZIP, ≈1,8 GB)",
   "BRUT.me GAME PACK": "HERNÝ BALÍK BRUT.me",
   "BRUT.me  /  HALF-LIFE PACK": "BRUT.me  /  BALÍK HALF-LIFE",
   "Server directory": "Zoznam serverov",
