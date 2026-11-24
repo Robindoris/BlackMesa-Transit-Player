@@ -1,6 +1,7 @@
 import argparse
 import json
 import mimetypes
+import os
 import secrets
 import shutil
 import subprocess
@@ -43,6 +44,7 @@ def run(install):
     service = Player(args.game, install / "catalog-url.txt")
     token = secrets.token_urlsafe(32)
     guard = threading.Lock()
+    restarting = threading.Event()
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
@@ -95,11 +97,19 @@ def run(install):
                 route = urlsplit(self.path)
                 size = int(self.headers["Content-Length"])
                 with guard:
+                    if restarting.is_set():
+                        return self.reply(503, b'{"error":"Restarting the dashboard..."}')
                     require(0 < size < 16000, "Invalid request.")
                     data = json.loads(self.rfile.read(size))
                     if route.path == "/update":
-                        result = update(install, BASE)
-                        return self.reply(200, json.dumps({"message": result}).encode())
+                        if not update(install, BASE):
+                            return self.reply(200, b'{"message":"Your dashboard is up to date."}')
+                        restarting.set()
+                        try:
+                            self.reply(200, b'{"restarting":true}')
+                        finally:
+                            self.server.shutdown()
+                        return
                     require(route.path == "/action", "Invalid request.")
                     service.action(data.pop("action"), data)
                     self.reply(200, json.dumps(service.state()).encode())
@@ -118,3 +128,10 @@ def run(install):
         if not args.no_browser and not open_installed(url):
             webbrowser.open(link)
         server.serve_forever()
+    if restarting.is_set():
+        # Keep the terminal and any running game-history monitors alive.
+        command = [sys.executable, str(install / "launcher.py"), args.role,
+                   "--game", str(args.game), "--port", str(server.server_port), "--no-browser"]
+        if os.name == "posix" and threading.active_count() == 1:
+            os.execv(sys.executable, command)
+        raise SystemExit(subprocess.call(command))

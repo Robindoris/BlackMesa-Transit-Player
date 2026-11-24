@@ -46,7 +46,7 @@ def update(install, active):
     updates.mkdir(exist_ok=True)
     destination = updates / version
     if active == destination:
-        return "Your dashboard is up to date."
+        return False
     with tempfile.TemporaryDirectory(dir=updates) as temporary:
         stage = Path(temporary) / "dashboard"
         if not destination.exists():
@@ -66,7 +66,7 @@ def update(install, active):
                 existing = {str(p.relative_to(active).as_posix()) for folder in ("player","shared","ui")
                             for p in (active / folder).rglob("*") if p.is_file() and "__pycache__" not in p.parts}
                 if existing == files.keys() - {"dashboard.py"}:
-                    return "Your dashboard is up to date."
+                    return False
             try:
                 stage.rename(destination)
             except OSError:
@@ -75,4 +75,4 @@ def update(install, active):
         marker = Path(temporary) / "current"
         marker.write_text(version)
         os.replace(marker, updates / "current")
-    return "Dashboard update downloaded. Reopen the launcher to use it."
+    return True

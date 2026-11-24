@@ -31,6 +31,24 @@ async function connect(credential) {
   if (session.pairing) localStorage.transitPairing = session.pairing;
 }
 
+async function reloadAfterUpdate() {
+  msg("Restarting the dashboard…");
+  const previousSession = token;
+  for (let attempt = 0; attempt < 60; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      await connect(localStorage.transitPairing);
+    } catch {
+      continue;
+    }
+    if (token !== previousSession) {
+      location.reload();
+      return;
+    }
+  }
+  throw Error(t("The dashboard has not restarted. Check the launcher terminal."));
+}
+
 async function api(path, body) {
   const options = {headers:{"X-Session":token}};
   if (body !== undefined) {
@@ -286,7 +304,11 @@ async function action(a,id) {
   if(a==="updateDashboard"){
     busy=true;
     msg("Checking for a dashboard update…");
-    try { msg((await api("/update",{})).message); }
+    try {
+      const result = await api("/update",{});
+      if (result.restarting) await reloadAfterUpdate();
+      else msg(result.message);
+    }
     catch(e){msg(e.message);}
     finally{busy=false;}
     return;

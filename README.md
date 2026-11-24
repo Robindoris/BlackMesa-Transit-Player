@@ -10,7 +10,7 @@ Download the repository ZIP and copy the two launcher scripts and the TransitPla
 
 To install the dashboard as an app, start the launcher and choose **Install** in Chrome or Edge. Keep the launcher running while using the app. On later starts, the launcher opens the installed app when it finds its desktop shortcut. It uses the same local address, `http://127.0.0.1:27080/`, each time. If you clear browser storage, open the full link printed by the launcher once to reconnect that browser profile.
 
-Use **Update dashboard** to check the public main branch. An update downloads into the local installation and takes effect the next time you open the launcher. Game files, catalog settings and player history are kept separately.
+Use **Update dashboard** to check the public main branch. After an update downloads, the launcher automatically restarts the dashboard and reloads the same app window or browser tab. Game files, catalog settings and player history are kept separately.
 
 ## Slovenčina
 
@@ -22,4 +22,4 @@ Black Mesa Transit Player je spúšťač hier a hráčsky panel pre balík BRUT.
 
 Ak chcete panel nainštalovať ako aplikáciu, spustite spúšťač a v prehliadači Chrome alebo Edge vyberte možnosť **Inštalovať**. Počas používania aplikácie nechajte spúšťač bežať. Pri ďalšom spustení otvorí nainštalovanú aplikáciu, ak nájde jej odkaz v systéme. Vždy používa rovnakú lokálnu adresu `http://127.0.0.1:27080/`. Ak vymažete údaje prehliadača, otvorte v danom profile celý odkaz z terminálu spúšťača.
 
-Ak chcete skontrolovať dostupnosť aktualizácie, kliknite v hráčskom paneli na **Update dashboard**. Spúšťač skontroluje verejnú vetvu `main` a stiahne dostupnú aktualizáciu. Nová verzia sa použije pri ďalšom spustení. Súbory hry, nastavenia katalógu a história hrania sa ukladajú samostatne.
+Ak chcete skontrolovať dostupnosť aktualizácie, kliknite v hráčskom paneli na **Update dashboard**. Spúšťač skontroluje verejnú vetvu `main` a stiahne dostupnú aktualizáciu. Po stiahnutí aktualizácie sa panel automaticky reštartuje a nová verzia sa načíta v tom istom okne aplikácie alebo na tej istej karte prehliadača. Súbory hry, nastavenia katalógu a história hrania sa ukladajú samostatne.
