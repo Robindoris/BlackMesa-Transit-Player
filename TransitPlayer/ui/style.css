@@ -106,3 +106,18 @@ h1{font-size:clamp(32px,5vw,58px);letter-spacing:-2px;margin:8px 0 20px}h2{font-
 .settings-panels{display:grid;gap:14px;max-width:780px}
 .settings-panels .card{padding:20px}
 .settings-panels p{margin:0}
+
+#launch-reveal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: var(--bm-color-background);
+}
+#launch-reveal[hidden] { display: none; }
+#launch-reveal video {
+  width: min(240px, 48vw, 48vh);
+  aspect-ratio: 1;
+  mask-image: radial-gradient(circle, black 63%, transparent 72%);
+}

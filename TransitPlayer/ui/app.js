@@ -323,6 +323,39 @@ async function work(fn, pending, success) {
   catch(e){msg(e.message);$("#error").textContent=t(e.message);try{state=await api("/api");render();}catch{}}
   finally{busy=false;$("#submit").disabled=false;}
 }
+// Keep the last frame visible until the requested view has usable data.
+let revealGeneration = 0;
+async function revealWhile(ready) {
+  const generation = ++revealGeneration;
+  const overlay = $("#launch-reveal");
+  const video = overlay.querySelector("video");
+  overlay.hidden = false;
+  video.pause();
+  let playback = Promise.resolve();
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    video.currentTime = 0;
+    playback = new Promise(resolve => {
+      const finish = () => {
+        clearTimeout(timer);
+        video.removeEventListener("ended", finish);
+        resolve();
+      };
+      const timer = setTimeout(finish, 1700);
+      video.addEventListener("ended", finish);
+      video.play().catch(finish);
+    });
+  } else {
+    video.load();
+  }
+  try {
+    await Promise.all([ready, playback]);
+  } finally {
+    if (generation === revealGeneration) {
+      video.pause();
+      overlay.hidden = true;
+    }
+  }
+}
 const send = (action,data={})=>api("/action",{...data,action});
 async function action(a,id) {
   if (a === "language" && ["en","sk"].includes(id)) {
@@ -333,7 +366,17 @@ async function action(a,id) {
   }
   if (busy) return;
   if (["library","servers","modeServers","stats","network","preferences"].includes(a)) {
-    tab=a==="modeServers"?"servers":a; filter=a==="modeServers"?id:""; render();updateStatsView();return;
+    const enteringNetwork = a === "network" && tab !== "network";
+    tab=a==="modeServers"?"servers":a; filter=a==="modeServers"?id:""; render();
+    if (enteringNetwork) await revealWhile(updateStatsView());
+    else {
+      if (tab !== "network") {
+        ++revealGeneration;
+        $("#launch-reveal").hidden = true;
+      }
+      updateStatsView();
+    }
+    return;
   }
   if(a==="directoryLayout"){
     directoryLayout=id;
@@ -382,7 +425,17 @@ document.addEventListener("change",e=>{if(e.target.id==="filter"){filter=e.targe
 $("#close").onclick=()=>{if(!busy)$("dialog").close();};
 $("dialog").addEventListener("cancel",e=>{if(busy)e.preventDefault();});
 $("#form").onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));work(()=>onSubmit(d),"Working…","Changes applied.");};
-(async()=>{try{await connect(launchToken || localStorage.transitPairing);state=await api("/api");render();checkForUpdate();await work(()=>send("refresh"),"Refreshing catalog…","");}catch(e){msg(e.message);}})();
+(async()=>{
+  try {
+    await revealWhile((async()=>{
+      await connect(launchToken || localStorage.transitPairing);
+      state = await api("/api");
+      render();
+    })());
+    checkForUpdate();
+    await work(()=>send("refresh"),"Refreshing catalog…","");
+  } catch(e) { msg(e.message); }
+})();
 
 setInterval(()=>{if(!document.hidden)updateStatsView();},15000);
 
