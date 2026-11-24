@@ -212,7 +212,7 @@ function networkView() {
 
 let loadingView=false;
 async function updateStatsView() {
-  if(!state || $("dialog").open || busy || loadingView || !["stats","servers","network"].includes(tab)) return;
+  if(!state || document.querySelector("dialog[open]") || busy || loadingView || !["stats","servers","network"].includes(tab)) return;
   const requested=tab;
   loadingView=true;
   try {
@@ -281,9 +281,9 @@ function render() {
   showUpdateStatus();
   const heroAction = button(t("▶  Launch default game"),"play","default","primary");
   const packLink = tab === "library"
-    ? '<a class="pack-download" href="https://hlpack.brut.me/" target="_blank" rel="noopener noreferrer">'+
+    ? '<button type="button" class="pack-download" data-action="packDownload">'+
       '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg>'+
-      '<span class="pack-tooltip">'+t("Download latest pack from hlpack.brut.me (ZIP, ≈1.8 GB)")+'</span></a>'
+      '<span class="pack-tooltip">'+t("Download latest pack from hlpack.brut.me (ZIP, ≈1.8 GB)")+'</span></button>'
     : "";
   let html = '<section class="hero"><span class="meta">'+t("BRUT.me GAME PACK")+'</span><h1>'+
     (tab==="network"?t("Server stats"):tab==="stats"?t("My stats"):tab==="servers"?t("Server directory"):t("Half-Life launcher"))+'</h1><div class="tools">'+heroAction+packLink+'</div></section>';
@@ -401,6 +401,86 @@ async function revealWhile(ready) {
     }
   }
 }
+const packUrl = "https://hlpack.brut.me/";
+async function openPackInstaller() {
+  const info = await api("/pack/check",{});
+  const dialog = $("#pack-dialog");
+  if (dialog.open) return;
+  const fields = $("#pack-fields");
+  const status = $("#pack-status");
+  const submit = $("#pack-submit");
+  const cancel = $("#pack-cancel");
+  let job, timer, checking = false;
+  const close = () => {clearTimeout(timer); dialog.close();};
+  cancel.onclick = close;
+  dialog.onclose = () => clearTimeout(timer);
+  dialog.oncancel = e => {if (checking) e.preventDefault();};
+  $("#pack-title").textContent = t("Download Half-Life pack");
+  cancel.textContent = t("Cancel");
+  cancel.disabled = submit.disabled = false;
+  submit.textContent = t("Continue to download");
+  const existing = path => '<p>'+t("Half-Life is already installed here.")+' <bdi>'+esc(path)+'</bdi></p><p>'+t("Continue to download another copy of the ZIP?")+'</p>'
+  fields.innerHTML = info.installed ? existing(info.game) : input("folder",t("Download folder"),info.suggested)+'<p>'+t("The launcher will install the game in a new subfolder named")+' <bdi>'+esc(info.subfolder)+'</bdi>.</p>';
+  status.textContent = "";
+  async function finish(manual) {
+    if (checking || !dialog.open) return;
+    clearTimeout(timer);
+    checking = true;
+    cancel.disabled = submit.disabled = true;
+    const archive = manual ? fields.querySelector("input").value.trim() : "";
+    try {
+      status.textContent = t("Checking for the ZIP. Once found, extraction and restart can take several minutes.");
+      const result = await api("/pack/finish",{job,archive});
+      if (result.waiting) {
+        status.textContent = t("Waiting for the completed ZIP…");
+        timer = setTimeout(()=>finish(false),3000);
+      } else {
+        localStorage.transitPairing = result.pairing;
+        close();
+        await reloadAfterRestart();
+      }
+    } catch(e) {
+      if (dialog.open) status.textContent = t(e.message);
+      else msg(e.message);
+    } finally {
+      checking = false;
+      cancel.disabled = submit.disabled = false;
+    }
+  }
+  $("#pack-form").onsubmit = async event => {
+    event.preventDefault();
+    if (job) return finish(true);
+    if (info.installed) {
+      window.open(packUrl,"_blank","popup,noopener,noreferrer");
+      close();
+      return;
+    }
+    // Open during the click so validation can finish without losing browser activation.
+    const popup = window.open("about:blank","_blank","popup");
+    if (!popup) {status.textContent = t("Allow the download window and try again.");return;}
+    popup.opener = null;
+    checking = true;
+    cancel.disabled = submit.disabled = true;
+    try {
+      const result = await api("/pack/prepare",{folder:fields.querySelector("input").value});
+      if (result.installed) {
+        popup.close();
+        info.installed = true;
+        fields.innerHTML = existing(result.installed);
+        return;
+      }
+      popup.location.replace(packUrl);
+      job = result.job;
+      fields.innerHTML = '<p>'+t("Complete the browser verification and save the ZIP in this folder:")+' <bdi>'+esc(result.folder)+'</bdi></p>'+
+        '<label>'+t("If saved elsewhere, enter the full ZIP path")+'<input name="archive"></label>';
+      submit.textContent = t("Check ZIP now");
+      status.textContent = t("Waiting for the completed ZIP…");
+      timer = setTimeout(()=>finish(false),3000);
+    } catch(e) {popup.close();status.textContent = t(e.message);}
+    finally {checking = false;cancel.disabled = submit.disabled = false;}
+  };
+  dialog.showModal();
+}
 const send = (action,data={})=>api("/action",{...data,action});
 async function action(a,id) {
   if (a === "language" && ["en","sk"].includes(id)) {
@@ -428,6 +508,10 @@ async function action(a,id) {
     sessionStorage.directoryLayout=id;
     render();
     document.querySelector('.layout-switch [aria-pressed="true"]').focus();
+    return;
+  }
+  if(a==="packDownload"){
+    try { await openPackInstaller(); } catch(e) { msg(e.message); }
     return;
   }
   if(a==="liveServers") {updateStatsView();return;}

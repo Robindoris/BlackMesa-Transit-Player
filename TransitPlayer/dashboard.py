@@ -13,6 +13,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from shared.core import require
 from player.updater import update, update_available
+from player.pack import GAME_FOLDER, completed_zip, install_pack, prepare
 from player.service import Player
 from player.webapp import open_installed, pairing_key
 
@@ -45,6 +46,9 @@ def run(install):
     token = secrets.token_urlsafe(32)
     guard = threading.Lock()
     shutdown_action = None
+    pack_job = None
+    restart_game = service.root
+    restart_install = install
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
@@ -96,7 +100,7 @@ def run(install):
             self.reply(200, file.read_bytes(), mimetypes.guess_type(file)[0] or "application/octet-stream")
 
         def do_POST(self):
-            nonlocal shutdown_action
+            nonlocal shutdown_action, pack_job, restart_game, restart_install
             origin = self.headers.get("Origin")
             if not self.valid() or self.headers.get("X-Session") != token or (origin and origin != url):
                 return self.reply(403, b"{}")
@@ -108,6 +112,37 @@ def run(install):
                         return self.reply(503, b'{"error":"Launcher is shutting down."}')
                     require(0 < size < 16000, "Invalid request.")
                     data = json.loads(self.rfile.read(size))
+                    if route.path == "/pack/check":
+                        return self.reply(200, json.dumps({
+                            "installed": (service.root / "hl.exe").is_file(),
+                            "game": str(service.root), "suggested": str(Path.home() / "Downloads"),
+                            "subfolder": GAME_FOLDER}).encode())
+                    if route.path == "/pack/prepare":
+                        require(not (service.root / "hl.exe").is_file(), "Half-Life is already installed.")
+                        selected = Path(data["folder"]).expanduser()
+                        for candidate in (selected, selected / GAME_FOLDER):
+                            if candidate.is_absolute() and (candidate / "hl.exe").is_file():
+                                return self.reply(200, json.dumps({"installed": str(candidate)}).encode())
+                        folder, previous = prepare(data["folder"], install)
+                        job_id = secrets.token_urlsafe(16)
+                        pack_job = (job_id, folder, previous)
+                        return self.reply(200, json.dumps({"job": job_id, "folder": str(folder)}).encode())
+                    if route.path == "/pack/finish":
+                        require(pack_job and data.get("job") == pack_job[0], "Reopen the pack installer.")
+                        _, folder, previous = pack_job
+                        archive = completed_zip(folder, previous, data.get("archive"))
+                        if archive is None:
+                            return self.reply(200, b'{"waiting":true}')
+                        next_install = folder / GAME_FOLDER / "TransitPlayer"
+                        next_pairing = pairing_key(next_install, url)
+                        restart_game = install_pack(archive, folder, install)
+                        restart_install = next_install
+                        shutdown_action = "restart"
+                        try:
+                            self.reply(200, json.dumps({"pairing": next_pairing}).encode())
+                        finally:
+                            self.server.shutdown()
+                        return
                     if route.path in ("/update", "/restart", "/stop"):
                         if route.path == "/update" and not update(install, BASE):
                             return self.reply(200, b'{"message":"Your dashboard is up to date."}')
@@ -142,8 +177,9 @@ def run(install):
         service.profiles.active.try_sync()
     if shutdown_action == "restart":
         # Keep the terminal and any running game-history monitors alive.
-        command = [sys.executable, str(install / "launcher.py"), args.role,
-                   "--game", str(args.game), "--port", str(server.server_port), "--no-browser"]
+        interpreter = restart_install / "runtime/python.exe" if sys.platform == "win32" else sys.executable
+        command = [str(interpreter), str(restart_install / "launcher.py"), args.role,
+                   "--game", str(restart_game), "--port", str(server.server_port), "--no-browser"]
         if os.name == "posix" and threading.active_count() == 1:
-            os.execv(sys.executable, command)
+            os.execv(command[0], command)
         raise SystemExit(subprocess.call(command))

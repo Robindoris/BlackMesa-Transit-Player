@@ -10,9 +10,9 @@ RequestExecutionLevel user
 SetCompressor /SOLID lzma
 InstallDir "$EXEDIR"
 Icon "${PAYLOAD}/TransitPlayer/ui/art/lambda.ico"
-!define MUI_WELCOMEPAGE_TEXT "This wizard installs the launcher and its private Python runtime into your existing BRUT.me Half-Life pack. You can run setup offline."
+!define MUI_WELCOMEPAGE_TEXT "This wizard installs the launcher and its private Python runtime for the BRUT.me Half-Life pack. You can run setup offline."
 !insertmacro MUI_PAGE_WELCOME
-!define MUI_DIRECTORYPAGE_TEXT_TOP "Select the BRUT.me Half-Life game folder containing hl.exe. Close any running dashboard before continuing."
+!define MUI_DIRECTORYPAGE_TEXT_TOP "Select the game folder containing hl.exe, or an empty launcher folder to download the game later. Close any running dashboard before continuing."
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE ValidateFolder
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
@@ -32,10 +32,22 @@ Function .onInit
 FunctionEnd
 
 Function ValidateFolder
-  IfFileExists "$INSTDIR\hl.exe" +4
-    MessageBox MB_ICONEXCLAMATION "Select the game folder that contains hl.exe." /SD IDOK
+  IfFileExists "$INSTDIR\hl.exe" done
+  FindFirst $0 $1 "$INSTDIR\*"
+  loop:
+    StrCmp $1 "" finished
+    StrCmp $1 "." next
+    StrCmp $1 ".." next
+    FindClose $0
+    MessageBox MB_ICONEXCLAMATION "Select an empty folder or the game folder containing hl.exe." /SD IDOK
     SetErrorLevel 1
     Abort
+  next:
+    FindNext $0 $1
+    Goto loop
+  finished:
+    FindClose $0
+  done:
 FunctionEnd
 
 Section "Launcher"
