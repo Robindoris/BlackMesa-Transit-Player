@@ -25,7 +25,7 @@ class Expired(ValueError):
 
 
 def request(route, data, credential=""):
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "User-Agent": "BlackMesaTransit-Player/1"}
     if credential:
         if not re.fullmatch(r"[A-Za-z0-9_-]{43}", credential):
             raise Expired("Invalid or expired profile token.")
