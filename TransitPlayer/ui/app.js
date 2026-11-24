@@ -1,7 +1,7 @@
 "use strict";
 const $ = s => document.querySelector(s);
-const token = location.hash.slice(1) || sessionStorage.transit;
-if (token) sessionStorage.transit = token;
+const launchToken = location.hash.slice(1);
+let token;
 history.replaceState(null, "", "/");
 let state, tab = "library", filter = "", busy = false, onSubmit;
 let directoryLayout = sessionStorage.directoryLayout === "list" ? "list" : "grid";
@@ -23,13 +23,26 @@ function applyLanguage() {
   if (state) render();
 }
 applyLanguage();
+async function connect(credential) {
+  const response = await fetch("/session", {headers: {"X-Session": credential || ""}});
+  if (!response.ok) throw Error(t("Reopen the dashboard from its launcher."));
+  const session = await response.json();
+  token = session.session;
+  if (session.pairing) localStorage.transitPairing = session.pairing;
+}
+
 async function api(path, body) {
   const options = {headers:{"X-Session":token}};
   if (body !== undefined) {
     options.method = "POST";
     options.body = body instanceof File ? body : JSON.stringify(body);
   }
-  const r = await fetch(path,options);
+  let r = await fetch(path,options);
+  if (r.status === 403 && localStorage.transitPairing) {
+    await connect(localStorage.transitPairing);
+    options.headers["X-Session"] = token;
+    r = await fetch(path,options);
+  }
   const result = await r.json();
   if (!r.ok) throw Error(result.error || t("Reopen the dashboard from its launcher."));
   return result;
@@ -293,6 +306,6 @@ document.addEventListener("change",e=>{if(e.target.id==="filter"){filter=e.targe
 $("#close").onclick=()=>{if(!busy)$("dialog").close();};
 $("dialog").addEventListener("cancel",e=>{if(busy)e.preventDefault();});
 $("#form").onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));work(()=>onSubmit(d),"Working…","Changes applied.");};
-(async()=>{try{state=await api("/api");render();if(state.url)await work(()=>send("refresh"),"Refreshing catalog…","");}catch(e){msg(e.message);}})();
+(async()=>{try{await connect(launchToken || localStorage.transitPairing);state=await api("/api");render();if(state.url)await work(()=>send("refresh"),"Refreshing catalog…","");}catch(e){msg(e.message);}})();
 
 setInterval(()=>{if(!document.hidden)updateStatsView();},15000);
