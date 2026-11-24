@@ -2,6 +2,9 @@ import argparse
 import json
 import mimetypes
 import secrets
+import shutil
+import subprocess
+import sys
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -14,6 +17,20 @@ from player.service import Player
 BASE = Path(__file__).resolve().parent
 
 
+def apply_launcher_icons(install):
+    if not sys.platform.startswith("linux") or not shutil.which("gio"):
+        return
+    icon_uri = (BASE / "ui/art/lambda.png").as_uri()
+    for name in ("Half-Life Launcher.sh", "Half-Life Launcher.bat"):
+        script = install.parent / name
+        if script.is_file():
+            try:
+                subprocess.run(["gio", "set", str(script), "metadata::custom-icon", icon_uri],
+                               stderr=subprocess.DEVNULL, timeout=2)
+            except (OSError, subprocess.TimeoutExpired):
+                pass  # Desktop metadata is optional for dashboard startup.
+
+
 def run(install):
     parser = argparse.ArgumentParser()
     parser.add_argument("role", choices=["player"])
@@ -21,6 +38,7 @@ def run(install):
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
+    apply_launcher_icons(install)
     service = Player(args.game, install / "catalog-url.txt")
     token = secrets.token_urlsafe(32)
     guard = threading.Lock()
