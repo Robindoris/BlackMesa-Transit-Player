@@ -7,7 +7,7 @@ let state, tab = "library", filter = "", busy = false, onSubmit;
 let directoryLayout = sessionStorage.directoryLayout === "list" ? "list" : "grid";
 const art = new Set(["valve","cstrike","gearbox","redempt","svencoop","wantedsp","bshift_unlocked"]);
 const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const button = (title, action, id="", cls="") => '<button class="'+cls+'" data-action="'+action+'" data-id="'+esc(id)+'">'+esc(title)+'</button>';
+const button = (title, action, id="", cls="") => '<button type="button" class="'+cls+'" data-action="'+action+'" data-id="'+esc(id)+'">'+esc(title)+'</button>';
 let message = "";
 const msg = text => { message = text; $("#message").textContent = t(text); $("#message").hidden = !text; };
 function applyLanguage() {
@@ -217,7 +217,8 @@ async function updateStatsView() {
   loadingView=true;
   try {
     const data=await send("liveServers",{history:requested==="network",personal:requested==="stats"});
-    if(state && tab===requested && !busy){
+    if(state && tab===requested && !busy && state.profile?.id===data.profile?.id){
+      state.profile=data.profile; state.playerName=data.playerName;
       state.network=data.network; state.stats=data.stats; state.servers=data.servers; state.serverCheck=data.serverCheck; render();
     }
   } catch(e){if(state && !busy) msg(e.message);}
@@ -262,7 +263,7 @@ function render() {
   if (tab === "preferences") {
     $("#view").innerHTML = '<h1>'+t("Settings and updates")+'</h1><div class="settings-panels">'+
       '<section class="card info"><h2>'+t("Settings")+'</h2><div class="tools">'+
-      button(t("Player name"),"playerName")+button(t("Catalog settings"),"settings")+
+      button(t("Player name")+(state.profile?" · "+state.playerName:""),"playerName")+button(t("Catalog settings"),"settings")+
       button(t("Refresh catalog"),"refresh")+'</div></section>'+
       '<section class="card info"><h2>'+t("Dashboard updates")+'</h2><p id="update-status" role="status"></p>'+
       button(t("Update dashboard"),"updateDashboard")+'</section>'+
@@ -292,7 +293,7 @@ function render() {
     html += '<div class="section"><h2>'+t("My Half-Life activity")+'</h2></div><div class="grid">'+
       [[t("Recorded playtime"),duration(history.seconds)],[t("Game launches"),history.launches],[t("Server join requests"),history.joins]]
       .map(([title,value])=>'<article class="card info"><span>'+esc(title)+'</span><strong class="stat-value">'+esc(value)+'</strong></article>').join("")+
-      '</div><p class="meta">'+t("Recorded on this computer while the launcher is running.")+'</p>'+playCalendar(history)+playerPerformance(history)+'<div class="section"><h2>'+t("Recent sessions")+'</h2></div><div class="grid session-grid">';
+      '</div><p class="meta">'+(state.profile ? esc(state.playerName)+" · "+t(state.profile.status) : t("Recorded on this computer while the launcher is running."))+'</p>'+playCalendar(history)+playerPerformance(history)+'<div class="section"><h2>'+t("Recent sessions")+'</h2></div><div class="grid session-grid">';
     for (const session of history.recent) {
       html += '<article class="card session-card"><div><h3>'+esc(state.modes.find(m=>m.id===session.mode)?.name || session.mode)+(session.server?" · "+esc(session.server):"")+'</h3><small>'+
         esc(new Date(session.started*1000).toLocaleString(language))+'</small></div><div class="session-details"><span>'+t("Last score")+' · '+esc(session.score ?? t("Unrecorded"))+'</span><span>'+esc(duration(session.seconds))+'</span></div></article>';
@@ -319,7 +320,18 @@ function render() {
 async function work(fn, pending, success) {
   if (busy) return;
   busy=true; msg(pending); $("#submit").disabled=true;
-  try {state=await fn(); $("dialog").close(); render(); msg(success);}
+  try {
+    const result=await fn();
+    const secret=result.profileToken;
+    delete result.profileToken;
+    state=result; $("dialog").close(); render(); msg(success);
+    if(secret){
+      modal(t("Save your player token"), '<p>'+t("Keep this token private. Paste it on another computer to access your profile.")+
+        '</p><input id="new-token" aria-label="'+t("Player token")+'" readonly autocomplete="off">'+button(t("Copy token"),"copyProfileToken"),
+        t("Done"),async()=>state);
+      $("#new-token").value=secret;
+    }
+  }
   catch(e){msg(e.message);$("#error").textContent=t(e.message);try{state=await api("/api");render();}catch{}}
   finally{busy=false;$("#submit").disabled=false;}
 }
@@ -433,10 +445,29 @@ async function action(a,id) {
     finally{busy=false;}
     return;
   }
-  if(a==="playerName") return modal(t("Player name"),
-    '<label>'+t("In-game name")+'<input autofocus name="playerName" maxlength="31" value="'+esc(state.playerName)+'" aria-describedby="nameHint"></label>'+
-    '<p id="nameHint">'+t("Used when you play or join a server. Leave blank to use the game’s configured name.")+'</p>',
-    t("Save name"),d=>send("setPlayerName",d));
+  const remember='<label><input type="checkbox" name="remember"> '+t("Remember me on this computer")+'</label>';
+  if(a==="playerName") {
+    const profile=state.profile;
+    const tools=button(t(profile?"Switch player":"Use existing profile"),"loginProfile")+
+      (profile ? button(t("Sign out"),"logoutProfile")+button(t("Replace token"),"rotateProfile")+
+        (profile.importable[0]?button(t("Import local history"),"importHistory"):"") : button(t("Create profile"),"createProfile"));
+    return modal(t("Player name"), '<label>'+t("In-game name")+'<input autofocus name="playerName" maxlength="31" value="'+esc(state.playerName)+'"></label>'+
+      '<p>'+ (profile ? esc(profile.id)+' · '+t(profile.status) : t("Used when you play or join a server. Leave blank to use the game’s configured name."))+
+      '</p><div class="tools">'+tools+'</div>',t("Save name"),d=>send("setPlayerName",d));
+  }
+  if(a==="createProfile") return modal(t("Create profile"),input("playerName",t("In-game name"),state.playerName)+remember,t("Generate token"),d=>send(a,d));
+  if(a==="loginProfile") return modal(t("Use existing profile"),'<label>'+t("Player token")+
+    '<input required autofocus name="token" type="password" autocomplete="off" spellcheck="false"></label>'+remember,t("Sign in"),d=>send(a,d));
+  if(a==="copyProfileToken"){
+    const field=$("#new-token");
+    field.select();
+    try{await navigator.clipboard.writeText(field.value); msg("Token copied.");}catch{field.focus();field.select();}
+    return;
+  }
+  if(a==="logoutProfile") return work(()=>send(a),"Working…","Signed out.");
+  if(a==="rotateProfile") return modal(t("Replace token"),'<p>'+t("Your old token and other device sign-ins will expire.")+'</p>',t("Replace token"),()=>send(a));
+  if(a==="importHistory") return modal(t("Import local history"),'<p>'+t("Claim these local sessions for this profile?")+' '+
+    esc(state.profile.importable[0])+' · '+duration(state.profile.importable[1])+'</p>',t("Import local history"),()=>send(a));
   if(a==="settings") return modal(t("Player catalog"),input("url",t("Public catalog folder URL"),state.manualUrl,"url","Automatic").replace("required ",""),t("Save and refresh"),d=>send("configure",d));
   const s=state.servers.find(s=>s.id===id);
   if(a==="install") return modal(t("Install mod"),"<p>"+esc(t("Download and install {mod} ({size} MiB) from your configured publisher?").replace(/\{(mod|size)\}/g, (_, key) => key === "mod" ? state.mods[id].name : (state.mods[id].bytes/1048576).toLocaleString(language,{minimumFractionDigits:1,maximumFractionDigits:1})))+"</p>",t("Install"),()=>send(a,{mode:id}));
@@ -445,6 +476,7 @@ async function action(a,id) {
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-action]");if(b)action(b.dataset.action,b.dataset.id);});
 document.addEventListener("change",e=>{if(e.target.id==="filter"){filter=e.target.value;render();}});
+$("dialog").addEventListener("close",()=>{if(!$("dialog").open){$("#fields").replaceChildren();onSubmit=null;}});
 $("#close").onclick=()=>{if(!busy)$("dialog").close();};
 $("dialog").addEventListener("cancel",e=>{if(busy)e.preventDefault();});
 $("#form").onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));work(()=>onSubmit(d),"Working…","Changes applied.");};

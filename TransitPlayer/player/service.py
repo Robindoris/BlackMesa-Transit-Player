@@ -11,6 +11,7 @@ from shared.core import CATALOG, MODES, address, catalog, digest, empty, extract
 
 
 from shared.servers import Directory, KNOWN, PACK_SERVERS, dashboard_api
+from player.profiles import Profiles, request as profile_request
 from player.stats import History
 from player.scores import configured_name, personal_name, personal_leaderboard, roster_score
 
@@ -23,8 +24,9 @@ class Player:
         self.manual = self.url
         self.data = empty()
         self.directory = Directory()
-        self.history = History()
-        self.player_name = self.history.player_name()
+        self.guest = History()
+        self.profiles = Profiles(self.guest)
+        self.guest_name = self.guest.player_name()
         self.personal_checked = -float("inf")
         self.cache = settings.with_suffix(".cache")
         if self.cache.exists():
@@ -35,6 +37,16 @@ class Player:
                     self.data = catalog(saved["catalog"])
             except (ValueError, KeyError, TypeError):
                 pass
+
+    @property
+    def history(self):
+        profile = self.profiles.active
+        return profile.history if profile else self.guest
+
+    @property
+    def player_name(self):
+        profile = self.profiles.active
+        return profile.name if profile else self.guest_name
 
     def refresh(self):
         base = self.manual
@@ -65,12 +77,16 @@ class Player:
         modes = {**MODES, **{k: v["name"] for k, v in self.data["mods"].items()}}
         network = self.directory.network()
         stats = self.history.summary()
-        return {"role": "player", "url": self.url, "manualUrl": self.manual, "playerName": self.player_name, **self.data, "servers": self.servers(),
+        profile = self.profiles.active
+        return {"profile": ({"id":profile.id, "status":profile.status, "importable":self.profiles.importable()} if profile else None),
+                "role": "player", "url": self.url, "manualUrl": self.manual, "playerName": self.player_name, **self.data, "servers": self.servers(),
                 "stats": stats, "network": network, "serverCheck": self.directory.checked, "modes": [
             {"id": k, "name": v, "installed": (self.root / k / "liblist.gam").is_file()}
             for k, v in modes.items()]}
 
     def capture_history(self, personal):
+        if self.profiles.active:
+            return  # Portable personal records come from this player’s own games.
         maps = []
         for server in self.directory.entries.values():
             if server.get("status") == "Online" and server.get("map"):
@@ -160,14 +176,34 @@ class Player:
             self.settings.write_text(url)
             self.url = self.manual = url
             self.refresh()
+        elif action in ("createProfile", "loginProfile"):
+            result = self.profiles.activate("create" if action == "createProfile" else "login", data)
+            self.personal_checked = -float("inf")
+            return result
+        elif action == "logoutProfile":
+            self.profiles.leave()
+            self.personal_checked = -float("inf")
+        elif action == "rotateProfile":
+            require(self.profiles.active, "Sign in first.")
+            return {"profileToken": profile_request("rotate", {}, self.profiles.active.device)["token"]}
+        elif action == "importHistory":
+            require(self.profiles.active, "Sign in first.")
+            require(all(game.is_set() for game in self.guest.games), "Finish the guest game before importing.")
+            self.profiles.import_guest()
         elif action == "setPlayerName":
             name = data.get("playerName")
             require(isinstance(name, str) and all(c.isprintable() and c not in '\";\\' for c in name),
                     "Remove quotes, semicolons, backslashes, and control characters from the player name.")
             name = name.strip()
             require(len(name.encode("utf-8")) <= 31, "Player names can use up to 31 UTF-8 bytes.")
-            self.history.set_player_name(name)
-            self.player_name = name
+            profile = self.profiles.active
+            if profile:
+                require(name, "Enter an in-game name.")
+                with profile.lock:
+                    profile.name = profile_request("rename", {"name":name}, profile.device)["name"]
+            else:
+                self.guest.set_player_name(name)
+                self.guest_name = name
             self.personal_checked = -float("inf")
         elif action == "refresh":
             self.refresh()

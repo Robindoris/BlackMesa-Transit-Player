@@ -118,8 +118,8 @@ def run(install):
                             self.server.shutdown()
                         return
                     require(route.path == "/action", "Invalid request.")
-                    service.action(data.pop("action"), data)
-                    self.reply(200, json.dumps(service.state()).encode())
+                    result = service.action(data.pop("action"), data) or {}
+                    self.reply(200, json.dumps({**service.state(), **result}).encode())
             except Exception as exc:
                 self.reply(400, json.dumps({"error": str(exc) or type(exc).__name__}).encode())
 
@@ -135,6 +135,11 @@ def run(install):
         if not args.no_browser and not open_installed(url):
             webbrowser.open(link)
         server.serve_forever()
+    service.profiles.stop.set()
+    service.profiles.wake.set()
+    service.profiles.thread.join(timeout=10)
+    if service.profiles.active:
+        service.profiles.active.try_sync()
     if shutdown_action == "restart":
         # Keep the terminal and any running game-history monitors alive.
         command = [sys.executable, str(install / "launcher.py"), args.role,
