@@ -77,3 +77,7 @@ h1{font-size:clamp(32px,5vw,58px);letter-spacing:-2px;margin:8px 0 20px}h2{font-
 #languages button{padding:6px 9px}
 #languages [aria-pressed="true"]{border-color:var(--bm-color-primary);color:var(--bm-color-primary)}
 @media(max-width:600px){.header-tools #edition{display:none}}
+
+.launcher-controls{display:inline-flex;flex-wrap:wrap;gap:6px}
+.launcher-controls button{display:inline-flex;align-items:center;gap:6px}
+.launcher-controls [aria-hidden]{font:18px/1 sans-serif;color:var(--bm-color-primary)}

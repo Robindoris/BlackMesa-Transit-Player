@@ -31,7 +31,7 @@ async function connect(credential) {
   if (session.pairing) localStorage.transitPairing = session.pairing;
 }
 
-async function reloadAfterUpdate() {
+async function reloadAfterRestart() {
   msg("Restarting the dashboard…");
   const previousSession = token;
   for (let attempt = 0; attempt < 60; attempt++) {
@@ -217,10 +217,10 @@ async function updateStatsView() {
   loadingView=true;
   try {
     const data=await send("liveServers",{history:requested==="network",personal:requested==="stats"});
-    if(tab===requested && !busy){
+    if(state && tab===requested && !busy){
       state.network=data.network; state.stats=data.stats; state.servers=data.servers; state.serverCheck=data.serverCheck; render();
     }
-  } catch(e){msg(e.message);}
+  } catch(e){if(state && !busy) msg(e.message);}
   finally{loadingView=false;}
 }
 function render() {
@@ -230,7 +230,9 @@ function render() {
     button(t("Server stats"),"network","",tab==="network"?"active":"") +
     button(t("My stats"),"stats","",tab==="stats"?"active":"") +
     button(t("Player name"),"playerName","","right") + button(t("Catalog settings"),"settings") + (state.url ? button(t("Refresh"),"refresh") : "") +
-    button(t("Update dashboard"),"updateDashboard");
+    button(t("Update dashboard"),"updateDashboard") +
+    '<span class="launcher-controls"><button data-action="restart"><span aria-hidden="true">↻</span> '+t("Restart launcher")+'</button>' +
+    '<button data-action="stop"><span aria-hidden="true">⏻</span> '+t("Stop launcher")+'</button></span>';
   const heroAction = button(t("▶  Launch default game"),"play","default","primary");
   let html = '<section class="hero"><span class="meta">'+t("BRUT.me GAME PACK")+'</span><h1>'+
     (tab==="network"?t("Server stats"):tab==="stats"?t("My stats"):tab==="servers"?t("Server directory"):t("Half-Life launcher"))+'</h1>'+heroAction+'</section>';
@@ -301,13 +303,20 @@ async function action(a,id) {
     return;
   }
   if(a==="liveServers") {updateStatsView();return;}
-  if(a==="updateDashboard"){
+  if(["updateDashboard","restart","stop"].includes(a)){
     busy=true;
-    msg("Checking for a dashboard update…");
+    const route = a === "updateDashboard" ? "/update" : "/" + a;
+    msg(a === "updateDashboard" ? "Checking for a dashboard update…" :
+        a === "restart" ? "Restarting the dashboard…" : "Stopping the launcher…");
     try {
-      const result = await api("/update",{});
-      if (result.restarting) await reloadAfterUpdate();
-      else msg(result.message);
+      const result = await api(route,{});
+      if (result.restarting) await reloadAfterRestart();
+      else if (a === "stop") {
+        state = null;
+        $("#nav").replaceChildren();
+        $("#view").replaceChildren();
+        msg("Launcher stopped. Open Half-Life Launcher to start it again.");
+      } else msg(result.message);
     }
     catch(e){msg(e.message);}
     finally{busy=false;}

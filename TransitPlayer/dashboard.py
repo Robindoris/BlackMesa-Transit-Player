@@ -44,7 +44,7 @@ def run(install):
     service = Player(args.game, install / "catalog-url.txt")
     token = secrets.token_urlsafe(32)
     guard = threading.Lock()
-    restarting = threading.Event()
+    shutdown_action = None
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
@@ -90,6 +90,7 @@ def run(install):
             self.reply(200, file.read_bytes(), mimetypes.guess_type(file)[0] or "application/octet-stream")
 
         def do_POST(self):
+            nonlocal shutdown_action
             origin = self.headers.get("Origin")
             if not self.valid() or self.headers.get("X-Session") != token or (origin and origin != url):
                 return self.reply(403, b"{}")
@@ -97,16 +98,16 @@ def run(install):
                 route = urlsplit(self.path)
                 size = int(self.headers["Content-Length"])
                 with guard:
-                    if restarting.is_set():
-                        return self.reply(503, b'{"error":"Restarting the dashboard..."}')
+                    if shutdown_action:
+                        return self.reply(503, b'{"error":"Launcher is shutting down."}')
                     require(0 < size < 16000, "Invalid request.")
                     data = json.loads(self.rfile.read(size))
-                    if route.path == "/update":
-                        if not update(install, BASE):
+                    if route.path in ("/update", "/restart", "/stop"):
+                        if route.path == "/update" and not update(install, BASE):
                             return self.reply(200, b'{"message":"Your dashboard is up to date."}')
-                        restarting.set()
+                        shutdown_action = "stop" if route.path == "/stop" else "restart"
                         try:
-                            self.reply(200, b'{"restarting":true}')
+                            self.reply(200, json.dumps({"restarting": shutdown_action == "restart"}).encode())
                         finally:
                             self.server.shutdown()
                         return
@@ -128,7 +129,7 @@ def run(install):
         if not args.no_browser and not open_installed(url):
             webbrowser.open(link)
         server.serve_forever()
-    if restarting.is_set():
+    if shutdown_action == "restart":
         # Keep the terminal and any running game-history monitors alive.
         command = [sys.executable, str(install / "launcher.py"), args.role,
                    "--game", str(args.game), "--port", str(server.server_port), "--no-browser"]
