@@ -80,7 +80,9 @@ h1{font-size:clamp(32px,5vw,58px);letter-spacing:-2px;margin:8px 0 20px}h2{font-
 
 .launcher-controls{display:inline-flex;flex-wrap:wrap;gap:6px}
 .launcher-controls button{display:inline-flex;align-items:center;gap:6px}
-.launcher-controls [aria-hidden]{font:18px/1 sans-serif;color:var(--bm-color-primary)}
+.launcher-icon{width:18px;height:18px;flex:none;background:var(--bm-color-primary);mask:var(--icon) center / contain no-repeat}
+.launcher-icon.refresh-cw{--icon:url("/art/lucide/refresh-cw.svg")}
+.launcher-icon.power-off{--icon:url("/art/lucide/power-off.svg")}
 
 #update-badge{display:inline-block;margin-left:6px;padding:3px 8px;border-radius:4px;background:var(--bm-color-primary);color:var(--bm-color-primary-foreground);font-size:12px}
 .settings-panels{display:grid;gap:14px;max-width:780px}

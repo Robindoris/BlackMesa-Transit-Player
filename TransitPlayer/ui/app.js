@@ -267,8 +267,8 @@ function render() {
       '<section class="card info"><h2>'+t("Dashboard updates")+'</h2><p id="update-status" role="status"></p>'+
       button(t("Update dashboard"),"updateDashboard")+'</section>'+
       '<section class="card info"><h2>'+t("Launcher")+'</h2><div class="launcher-controls">'+
-      '<button data-action="restart"><span aria-hidden="true">↻</span> '+t("Restart launcher")+'</button>'+
-      '<button data-action="stop"><span aria-hidden="true">⏻</span> '+t("Stop launcher")+'</button></div></section></div>';
+      '<button data-action="restart"><span class="launcher-icon refresh-cw" aria-hidden="true"></span> '+t("Restart launcher")+'</button>'+
+      '<button data-action="stop"><span class="launcher-icon power-off" aria-hidden="true"></span> '+t("Stop launcher")+'</button></div></section></div>';
     showUpdateStatus();
     return;
   }
