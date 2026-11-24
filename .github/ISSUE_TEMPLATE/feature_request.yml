@@ -1,0 +1,18 @@
+name: Request a feature
+description: Suggest an improvement to the launcher or dashboard.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe where in the launcher or game you run into the limitation.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What should change?
+      description: Give an example of what you would be able to do once this works.
+    validations:
+      required: true

@@ -1,0 +1,51 @@
+name: Report a bug
+description: Report a problem installing the launcher or using the dashboard or game.
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Installation or updates
+        - Game launch or joining a server
+        - Game library or downloads
+        - Server directory
+        - Profiles or statistics
+        - Other or unsure
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and launcher version
+      description: Include your install method and version if known.
+      placeholder: Windows 11, installer 1.1.0, dashboard updated today
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps leading to the problem
+      description: Start with the screen or action you used. Mention if it only happened once.
+      placeholder: Open Servers, choose a Half-Life server, then click Join server.
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happened?
+      description: Include the exact error text and affected filename if shown.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or logs
+      description: Remove profile tokens, full dashboard sign-in links, session headers, and personal details before sharing.
