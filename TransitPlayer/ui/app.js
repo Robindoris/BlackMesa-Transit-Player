@@ -329,18 +329,36 @@ async function revealWhile(ready) {
   const generation = ++revealGeneration;
   const overlay = $("#launch-reveal");
   const video = overlay.querySelector("video");
+  video.style.transform = "";
   overlay.hidden = false;
   video.pause();
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
   let playback = Promise.resolve();
-  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  if (!reducedMotion) {
     video.currentTime = 0;
     playback = new Promise(resolve => {
+      // Extend the camera push beyond the video box during the final second.
+      const fullScale = Math.hypot(overlay.clientWidth, overlay.clientHeight) / video.offsetWidth;
+      let frame;
+      const zoom = () => {
+        if (generation !== revealGeneration) return;
+        const remaining = video.duration - video.currentTime;
+        if (remaining < 1) {
+          const scale = 1 + (fullScale - 1) * (1 - remaining) ** 3;
+          video.style.transform = "scale(" + scale + ")";
+        }
+        frame = requestAnimationFrame(zoom);
+      };
+      frame = requestAnimationFrame(zoom);
       const finish = () => {
+        cancelAnimationFrame(frame);
+        video.removeEventListener("error", finish);
         clearTimeout(timer);
         video.removeEventListener("ended", finish);
         resolve();
       };
-      const timer = setTimeout(finish, 1700);
+      const timer = setTimeout(finish, 8000);
+      video.addEventListener("error", finish);
       video.addEventListener("ended", finish);
       video.play().catch(finish);
     });
@@ -349,10 +367,14 @@ async function revealWhile(ready) {
   }
   try {
     await Promise.all([ready, playback]);
+    if (generation === revealGeneration && !reducedMotion && video.ended) {
+      await overlay.animate([{opacity: 1}, {opacity: 0}], {duration: 200}).finished;
+    }
   } finally {
     if (generation === revealGeneration) {
       video.pause();
       overlay.hidden = true;
+      video.style.transform = "";
     }
   }
 }
