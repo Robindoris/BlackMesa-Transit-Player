@@ -1,0 +1,8 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "BRUT.me Pack Launcher Desktop",
+  "version": "0.1.0",
+  "identifier": "me.brut.transit.desktop",
+  "app": { "windows": [] },
+  "bundle": { "active": false, "icon": ["../TransitPlayer/ui/art/lambda.ico"] }
+}
