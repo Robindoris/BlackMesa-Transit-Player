@@ -323,13 +323,14 @@ async function work(fn, pending, success) {
   catch(e){msg(e.message);$("#error").textContent=t(e.message);try{state=await api("/api");render();}catch{}}
   finally{busy=false;$("#submit").disabled=false;}
 }
-// Keep the last frame visible until the requested view has usable data.
+// Fade the reveal into the page as the camera pushes through the logo.
 let revealGeneration = 0;
 async function revealWhile(ready) {
   const generation = ++revealGeneration;
   const overlay = $("#launch-reveal");
   const video = overlay.querySelector("video");
   video.style.transform = "";
+  overlay.style.opacity = "";
   overlay.hidden = false;
   video.pause();
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -344,7 +345,9 @@ async function revealWhile(ready) {
         if (generation !== revealGeneration) return;
         const remaining = video.duration - video.currentTime;
         if (remaining < 1) {
-          const scale = 1 + (fullScale - 1) * (1 - remaining) ** 3;
+          const progress = Math.min(1, 1 - remaining);
+          const scale = 1 + (fullScale - 1) * progress ** 3;
+          overlay.style.opacity = String(1 - progress ** 2 * (3 - 2 * progress));
           video.style.transform = "scale(" + scale + ")";
         }
         frame = requestAnimationFrame(zoom);
@@ -352,6 +355,7 @@ async function revealWhile(ready) {
       frame = requestAnimationFrame(zoom);
       const finish = () => {
         cancelAnimationFrame(frame);
+        if (video.ended && generation === revealGeneration) overlay.hidden = true;
         video.removeEventListener("error", finish);
         clearTimeout(timer);
         video.removeEventListener("ended", finish);
@@ -367,9 +371,6 @@ async function revealWhile(ready) {
   }
   try {
     await Promise.all([ready, playback]);
-    if (generation === revealGeneration && !reducedMotion && video.ended) {
-      await overlay.animate([{opacity: 1}, {opacity: 0}], {duration: 200}).finished;
-    }
   } finally {
     if (generation === revealGeneration) {
       video.pause();
