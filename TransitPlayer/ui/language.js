@@ -7,6 +7,7 @@ const slovak = {
   "Use existing profile": "Použiť existujúci profil",
   "Switch player": "Prepnúť hráča",
   "Sign out": "Odhlásiť sa",
+  "Signed in as": "Prihlásený hráč",
   "Sign in": "Prihlásiť sa",
   "Generate token": "Vygenerovať token",
   "Player token": "Token hráča",

@@ -122,3 +122,11 @@ h1{font-size:clamp(32px,5vw,58px);letter-spacing:-2px;margin:8px 0 20px}h2{font-
   aspect-ratio: 1;
   mask-image: radial-gradient(circle, black 63%, transparent 72%);
 }
+
+#profile-player{max-width:32ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:840px){
+  header:has(#profile-player:not([hidden])){height:auto;min-height:64px;flex-wrap:wrap;gap:8px 16px;padding-block:10px}
+  .header-tools:has(#profile-player:not([hidden])){max-width:100%;min-width:0}
+  #profile-player{min-width:0}
+}
+.section h2 bdi{overflow-wrap:anywhere}

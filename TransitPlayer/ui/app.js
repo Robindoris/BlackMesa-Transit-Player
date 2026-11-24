@@ -253,6 +253,11 @@ async function checkForUpdate() {
 }
 
 function render() {
+  const playerName = state.profile ? state.playerName : "";
+  const profileButton = $("#profile-player");
+  profileButton.hidden = !playerName;
+  profileButton.textContent = playerName ? t("Signed in as") + " " + playerName : "";
+  profileButton.title = profileButton.textContent;
   $("#edition").textContent = t("BRUT.me  /  HALF-LIFE PACK");
   $("#nav").innerHTML = button(t("Game library"),"library","",tab==="library"?"active":"") +
     button(t("Servers"),"servers","",tab==="servers"?"active":"") +
@@ -290,10 +295,10 @@ function render() {
     html += networkView();
   } else if (tab === "stats") {
     const history=state.stats;
-    html += '<div class="section"><h2>'+t("My Half-Life activity")+'</h2></div><div class="grid">'+
+    html += '<div class="section"><h2>'+t("My Half-Life activity")+(playerName?' · <bdi>'+esc(playerName)+'</bdi>':'')+'</h2></div><div class="grid">'+
       [[t("Recorded playtime"),duration(history.seconds)],[t("Game launches"),history.launches],[t("Server join requests"),history.joins]]
       .map(([title,value])=>'<article class="card info"><span>'+esc(title)+'</span><strong class="stat-value">'+esc(value)+'</strong></article>').join("")+
-      '</div><p class="meta">'+(state.profile ? esc(state.playerName)+" · "+t(state.profile.status) : t("Recorded on this computer while the launcher is running."))+'</p>'+playCalendar(history)+playerPerformance(history)+'<div class="section"><h2>'+t("Recent sessions")+'</h2></div><div class="grid session-grid">';
+      '</div><p class="meta">'+(state.profile ? t(state.profile.status) : t("Recorded on this computer while the launcher is running."))+'</p>'+playCalendar(history)+playerPerformance(history)+'<div class="section"><h2>'+t("Recent sessions")+'</h2></div><div class="grid session-grid">';
     for (const session of history.recent) {
       html += '<article class="card session-card"><div><h3>'+esc(state.modes.find(m=>m.id===session.mode)?.name || session.mode)+(session.server?" · "+esc(session.server):"")+'</h3><small>'+
         esc(new Date(session.started*1000).toLocaleString(language))+'</small></div><div class="session-details"><span>'+t("Last score")+' · '+esc(session.score ?? t("Unrecorded"))+'</span><span>'+esc(duration(session.seconds))+'</span></div></article>';
