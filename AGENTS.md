@@ -2,7 +2,7 @@
 
 Treat `Robindoris/BlackMesa-Transit-Player` as read-only. Never push commits, branches, or tags to it, regardless of the remote name.
 
-1. Locate the user's installed BRUT.me Half-Life pack. The destination is the directory containing `hl.exe`. If the path is missing or several installations match, ask the user which directory to use.
+1. Locate the user's installed BRUT.me Half-Life pack. The destination is the directory containing `hl.exe`. On Windows, setup checks the current user’s Saved Games folder and its immediate subfolders. For a standalone installation, accept the suggested `Saved Games\BRUT.me Pack Launcher` folder. If several game installations match, confirm which one the user wants.
 2. On 64-bit Windows 10 or 11, download the [Windows installer](https://github.com/Robindoris/BlackMesa-Transit-Player/releases/latest/download/Brutmepacklauncher-Setup.exe). Close the dashboard, select the game directory in setup, and install. For unattended setup, pass `/S` and then `/D=C:\path to game` as the final argument. Check the exit code before launching `Brutmepacklauncher.exe` beside `hl.exe`. The installer supplies Python and its runtime DLLs.
 3. For Linux or manual installation, download and extract the [main branch ZIP](https://github.com/Robindoris/BlackMesa-Transit-Player/archive/refs/heads/main.zip), or use an existing checkout.
 4. From the repository root, copy `Half-Life Launcher.bat`, `Half-Life Launcher.sh`, and the entire `TransitPlayer` directory directly beside `hl.exe`. Preserve existing game files and player data. For an existing working installation, use **Update dashboard** to update it.

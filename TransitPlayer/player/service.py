@@ -1,6 +1,7 @@
 import json
 import os
 import shlex
+import stat
 import subprocess
 import tempfile
 import time
@@ -14,6 +15,34 @@ from shared.servers import Directory, KNOWN, PACK_SERVERS, dashboard_api
 from player.profiles import Profiles, request as profile_request
 from player.stats import History
 from player.scores import configured_name, personal_name, personal_leaderboard, roster_score
+
+
+def set_windows_attributes(path, attributes):
+    import ctypes
+    if not ctypes.windll.kernel32.SetFileAttributesW(str(path), attributes):
+        raise ctypes.WinError()
+
+
+def prepare_startup_script(path):
+    """Enable GoldSrc launch commands in an empty pack startup script."""
+    try:
+        if not path.is_file() or path.read_bytes().strip():
+            return
+        attributes = path.stat().st_file_attributes if os.name == "nt" else 0
+        readonly = attributes & stat.FILE_ATTRIBUTE_READONLY
+        if readonly:
+            set_windows_attributes(path, attributes & ~stat.FILE_ATTRIBUTE_READONLY)
+        try:
+            path.write_bytes(b"stuffcmds\r\n")
+        finally:
+            if readonly:
+                set_windows_attributes(path, attributes)
+    except PermissionError as exc:
+        raise ValueError(
+            f"Windows denied access to {path}. Check the file permissions and Windows Security "
+            "Protection history, or use a writable copy of the game folder."
+            if os.name == "nt" else f"Permission denied preparing {path}. Check the file permissions."
+        ) from exc
 
 
 class Player:
@@ -161,8 +190,7 @@ class Player:
             startup = self.root / mode / "valve.rc"
             if not startup.is_file():
                 startup = self.root / "valve" / "valve.rc"
-            if startup.is_file() and not startup.read_bytes().strip():
-                startup.write_bytes(b"stuffcmds\r\n")
+            prepare_startup_script(startup)
         if os.name == "nt":
             return [str(self.root / "hl.exe"), *args]
         wrapper = self.root / "run-half-life.sh"
