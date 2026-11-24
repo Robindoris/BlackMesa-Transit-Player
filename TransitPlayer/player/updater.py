@@ -25,7 +25,7 @@ def matches(data, sha):
     return hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest() == sha
 
 
-def update(install, active):
+def published_dashboard():
     tree = json.loads(fetch("/git/trees/main?recursive=1", 2**20))
     version = tree["sha"]
     if tree.get("truncated") or not re.fullmatch("[0-9a-f]{40}", version):
@@ -42,15 +42,33 @@ def update(install, active):
         files[path] = item["sha"]
     if not REQUIRED.issubset(files):
         raise ValueError("GitHub returned an incomplete dashboard package.")
+    return version, files
+
+
+def has_changes(active, version, files):
+    if active.name == version and active.parent.name == ".dashboard-updates":
+        return False
+    local = {p.relative_to(active).as_posix() for folder in ("player", "shared", "ui")
+             for p in (active / folder).rglob("*") if p.is_file() and "__pycache__" not in p.parts}
+    if local | {"dashboard.py"} != files.keys():
+        return True
+    return any(not matches((active / path).read_bytes(), sha) for path, sha in files.items())
+
+
+def update_available(active):
+    return has_changes(active, *published_dashboard())
+
+
+def update(install, active):
+    version, files = published_dashboard()
+    if not has_changes(active, version, files):
+        return False
     updates = install / ".dashboard-updates"
     updates.mkdir(exist_ok=True)
     destination = updates / version
-    if active == destination:
-        return False
     with tempfile.TemporaryDirectory(dir=updates) as temporary:
         stage = Path(temporary) / "dashboard"
         if not destination.exists():
-            changed = False
             for path, sha in files.items():
                 source = active / path
                 data = source.read_bytes() if source.is_file() else b""
@@ -58,15 +76,9 @@ def update(install, active):
                     data = fetch("/git/blobs/" + sha, 16 * 2**20, "application/vnd.github.raw+json")
                     if not matches(data, sha):
                         raise ValueError("Dashboard download failed verification. Try again.")
-                    changed = True
                 output = stage / path
                 output.parent.mkdir(parents=True, exist_ok=True)
                 output.write_bytes(data)
-            if not changed and active == install and not (updates / "current").exists():
-                existing = {str(p.relative_to(active).as_posix()) for folder in ("player","shared","ui")
-                            for p in (active / folder).rglob("*") if p.is_file() and "__pycache__" not in p.parts}
-                if existing == files.keys() - {"dashboard.py"}:
-                    return False
             try:
                 stage.rename(destination)
             except OSError:

@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 from shared.core import require
-from player.updater import update
+from player.updater import update, update_available
 from player.service import Player
 from player.webapp import open_installed, pairing_key
 
@@ -78,9 +78,15 @@ def run(install):
             if path == "/manifest.webmanifest":
                 return self.reply(200, (BASE / "ui/manifest.webmanifest").read_bytes(),
                                   "application/manifest+json")
-            if path == "/api":
+            if path in ("/api", "/update-status"):
                 if self.headers.get("X-Session") != token:
                     return self.reply(403, b"{}")
+                if path == "/update-status":
+                    try:
+                        available = update_available(BASE)
+                    except (OSError, ValueError, KeyError):
+                        return self.reply(503, b'{"error":"Could not check for updates."}')
+                    return self.reply(200, json.dumps({"available": available}).encode())
                 with guard:
                     return self.reply(200, json.dumps(service.state()).encode())
             root = BASE / "ui"

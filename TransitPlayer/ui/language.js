@@ -1,4 +1,11 @@
 const slovak = {
+  "Settings and updates": "Nastavenia a aktualizácie",
+  "Settings": "Nastavenia",
+  "Dashboard updates": "Aktualizácie panela",
+  "Update available": "Aktualizácia je dostupná",
+  "Could not check for updates.": "Aktualizácie sa nepodarilo skontrolovať.",
+  "Refresh catalog": "Obnoviť katalóg",
+  "Launcher": "Spúšťač",
   "Game library": "Knižnica hier",
   "Servers": "Servery",
   "Server stats": "Štatistiky serverov",

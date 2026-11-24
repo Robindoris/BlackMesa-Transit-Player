@@ -223,16 +223,56 @@ async function updateStatsView() {
   } catch(e){if(state && !busy) msg(e.message);}
   finally{loadingView=false;}
 }
+let updateStatus = "Checking for a dashboard update…";
+let updateAvailable = false;
+let checkingUpdates = false;
+
+function showUpdateStatus() {
+  const badge = $("#update-badge");
+  if (badge) badge.hidden = !updateAvailable;
+  const status = $("#update-status");
+  if (status) status.textContent = t(updateStatus);
+  const install = $('[data-action="updateDashboard"]');
+  if (install) install.classList.toggle("primary", updateAvailable);
+}
+
+async function checkForUpdate() {
+  if (!state || checkingUpdates) return;
+  checkingUpdates = true;
+  try {
+    const result = await api("/update-status");
+    updateAvailable = result.available;
+    updateStatus = updateAvailable ? "Update available" : "Your dashboard is up to date.";
+  } catch {
+    updateStatus = "Could not check for updates.";
+  } finally {
+    checkingUpdates = false;
+    showUpdateStatus();
+  }
+}
+
 function render() {
   $("#edition").textContent = t("BRUT.me  /  HALF-LIFE PACK");
   $("#nav").innerHTML = button(t("Game library"),"library","",tab==="library"?"active":"") +
     button(t("Servers"),"servers","",tab==="servers"?"active":"") +
     button(t("Server stats"),"network","",tab==="network"?"active":"") +
     button(t("My stats"),"stats","",tab==="stats"?"active":"") +
-    button(t("Player name"),"playerName","","right") + button(t("Catalog settings"),"settings") + (state.url ? button(t("Refresh"),"refresh") : "") +
-    button(t("Update dashboard"),"updateDashboard") +
-    '<span class="launcher-controls"><button data-action="restart"><span aria-hidden="true">↻</span> '+t("Restart launcher")+'</button>' +
-    '<button data-action="stop"><span aria-hidden="true">⏻</span> '+t("Stop launcher")+'</button></span>';
+    '<button data-action="preferences" class="right'+(tab==="preferences"?' active':'')+'">'+t("Settings and updates")+
+    ' <span id="update-badge" hidden>'+t("Update available")+'</span></button>';
+  if (tab === "preferences") {
+    $("#view").innerHTML = '<h1>'+t("Settings and updates")+'</h1><div class="settings-panels">'+
+      '<section class="card info"><h2>'+t("Settings")+'</h2><div class="tools">'+
+      button(t("Player name"),"playerName")+button(t("Catalog settings"),"settings")+
+      (state.url ? button(t("Refresh catalog"),"refresh") : "")+'</div></section>'+
+      '<section class="card info"><h2>'+t("Dashboard updates")+'</h2><p id="update-status" role="status"></p>'+
+      button(t("Update dashboard"),"updateDashboard")+'</section>'+
+      '<section class="card info"><h2>'+t("Launcher")+'</h2><div class="launcher-controls">'+
+      '<button data-action="restart"><span aria-hidden="true">↻</span> '+t("Restart launcher")+'</button>'+
+      '<button data-action="stop"><span aria-hidden="true">⏻</span> '+t("Stop launcher")+'</button></div></section></div>';
+    showUpdateStatus();
+    return;
+  }
+  showUpdateStatus();
   const heroAction = button(t("▶  Launch default game"),"play","default","primary");
   let html = '<section class="hero"><span class="meta">'+t("BRUT.me GAME PACK")+'</span><h1>'+
     (tab==="network"?t("Server stats"):tab==="stats"?t("My stats"):tab==="servers"?t("Server directory"):t("Half-Life launcher"))+'</h1>'+heroAction+'</section>';
@@ -292,7 +332,7 @@ async function action(a,id) {
     return;
   }
   if (busy) return;
-  if (["library","servers","modeServers","stats","network"].includes(a)) {
+  if (["library","servers","modeServers","stats","network","preferences"].includes(a)) {
     tab=a==="modeServers"?"servers":a; filter=a==="modeServers"?id:""; render();updateStatsView();return;
   }
   if(a==="directoryLayout"){
@@ -316,7 +356,12 @@ async function action(a,id) {
         $("#nav").replaceChildren();
         $("#view").replaceChildren();
         msg("Launcher stopped. Open Half-Life Launcher to start it again.");
-      } else msg(result.message);
+      } else {
+        updateAvailable = false;
+        updateStatus = result.message;
+        showUpdateStatus();
+        msg(result.message);
+      }
     }
     catch(e){msg(e.message);}
     finally{busy=false;}
@@ -337,6 +382,8 @@ document.addEventListener("change",e=>{if(e.target.id==="filter"){filter=e.targe
 $("#close").onclick=()=>{if(!busy)$("dialog").close();};
 $("dialog").addEventListener("cancel",e=>{if(busy)e.preventDefault();});
 $("#form").onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));work(()=>onSubmit(d),"Working…","Changes applied.");};
-(async()=>{try{await connect(launchToken || localStorage.transitPairing);state=await api("/api");render();if(state.url)await work(()=>send("refresh"),"Refreshing catalog…","");}catch(e){msg(e.message);}})();
+(async()=>{try{await connect(launchToken || localStorage.transitPairing);state=await api("/api");render();checkForUpdate();if(state.url)await work(()=>send("refresh"),"Refreshing catalog…","");}catch(e){msg(e.message);}})();
 
 setInterval(()=>{if(!document.hidden)updateStatsView();},15000);
+
+setInterval(()=>{if(!document.hidden)checkForUpdate();}, 15 * 60 * 1000);
