@@ -2,6 +2,8 @@
 
 [English](#english) · [Slovenčina](#slovenčina)
 
+[Installation guide for agents / Inštalačný návod pre agentov](AGENTS.md)
+
 ## English
 
 A local launcher and player dashboard for the BRUT.me Half-Life pack.
