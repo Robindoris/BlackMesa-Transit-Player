@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 .dashboard-updates/
 catalog-url.cache
+
+/dist/

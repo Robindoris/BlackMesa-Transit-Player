@@ -8,7 +8,9 @@
 
 A local launcher and player dashboard for the BRUT.me Half-Life pack.
 
-Download the repository ZIP and copy the two launcher scripts and the TransitPlayer folder beside hl.exe. On Windows, open **Half-Life Launcher.bat**. On Linux, run **bash "Half-Life Launcher.sh"** with Python 3.11 or newer and Wine installed.
+On 64-bit Windows 10 or 11, download [Brutmepacklauncher-Setup.exe](https://github.com/Robindoris/BlackMesa-Transit-Player/releases/latest/download/Brutmepacklauncher-Setup.exe). Close any running launcher, open the installer, select the game folder containing `hl.exe`, and click **Install**. Open `Brutmepacklauncher.exe` in that folder to start the dashboard. Setup includes Python and the runtime DLLs and works offline. You need an existing BRUT.me Half-Life pack and a browser.
+
+For a manual installation, download the repository ZIP and copy the two launcher scripts and the TransitPlayer folder beside hl.exe. On Windows, open **Half-Life Launcher.bat**. On Linux, run **bash "Half-Life Launcher.sh"** with Python 3.11 or newer and Wine installed.
 
 To install the dashboard as an app, start the launcher and choose **Install** in Chrome or Edge. Keep the launcher running while using the app. On later starts, the launcher opens the installed app when it finds its desktop shortcut. It uses the same local address, `http://127.0.0.1:27080/`, each time. If you clear browser storage, open the full link printed by the launcher once to reconnect that browser profile.
 
@@ -21,6 +23,10 @@ Existing local sessions stay under the local player. Use **Import local history*
 ## Slovenčina
 
 Black Mesa Transit Player je spúšťač hier a hráčsky panel pre balík BRUT.me Half-Life.
+
+Vo Windows 10 alebo 11 (64-bit) si stiahnite [Brutmepacklauncher-Setup.exe](https://github.com/Robindoris/BlackMesa-Transit-Player/releases/latest/download/Brutmepacklauncher-Setup.exe). Zatvorte spustený panel, otvorte inštalátor, vyberte priečinok hry so súborom `hl.exe` a kliknite na **Install**. Panel potom spustíte súborom `Brutmepacklauncher.exe` v priečinku hry. Inštalátor obsahuje Python aj potrebné knižnice a funguje offline. Potrebujete nainštalovaný balík BRUT.me Half-Life a prehliadač.
+
+Manuálna inštalácia:
 
 1. Stiahnite si ZIP archív repozitára a rozbaľte ho.
 2. Skopírujte oba spúšťacie skripty a priečinok `TransitPlayer` do priečinka s hrou, v ktorom sa nachádza súbor `hl.exe`.
